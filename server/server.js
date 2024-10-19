@@ -4,6 +4,8 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 const http = require('http');
 const dotenv = require('dotenv');
+const projectRoutes = require('./routes/projectRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 
 dotenv.config(); // Load environment variables
 
@@ -25,15 +27,37 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Server is running');
 });
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // WebSocket connection
 io.on('connection', (socket) => {
-  console.log('New WebSocket connection');
+    console.log('New WebSocket connection');
   
-  socket.on('disconnect', () => {
-    console.log('User disconnected');
+    // Join a project room
+    socket.on('joinProject', (projectId) => {
+      socket.join(projectId);
+      console.log(`User joined project: ${projectId}`);
+    });
+  
+    // Broadcast task updates to project room
+    socket.on('taskUpdated', (task) => {
+      io.to(task.project).emit('taskUpdated', task);
+    });
+  
+    socket.on('disconnect', () => {
+      console.log('User disconnected');
+    });
+   
+        socket.on('newTask', (newTask) => {
+          // Broadcast the new task to other clients
+          socket.broadcast.emit('newTask', newTask);
+        });
+    
+
+      
   });
-});
+  
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
